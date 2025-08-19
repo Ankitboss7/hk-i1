@@ -1612,7 +1612,7 @@ async def sendvps(
     embed.add_field(name="🧬 Full Combo", value=f"```{fullcombo}```", inline=False)
     embed.add_field(name="💾 RAM", value=f"{ram} GB", inline=True)
     embed.add_field(name="🔥 CPU", value=f"{cpu} cores", inline=True)
-    embed.set_footer(text="🔐 Safe your details | Powered by LP NODES")
+    embed.set_footer(text="🔐 Safe your details | Powered by LD NODES")
 
     try:
         await user.send(embed=embed)
@@ -2181,5 +2181,155 @@ async def newmessage(interaction: discord.Interaction, channelid: str, text: str
     except Exception as e:
         await interaction.response.send_message(f"❌ Failed: {e}", ephemeral=True)
 
+# ================= /manage =================
+class ManageVPSView(ui.View):
+    def __init__(self, container_name: str, owner_id: int):
+        super().__init__(timeout=None)
+        self.container_name = container_name
+        self.owner_id = owner_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("❌ You do not own this VPS!", ephemeral=True)
+            return False
+        return True
+
+    @ui.button(label="Start", style=discord.ButtonStyle.success)
+    async def start_vps(self, interaction: discord.Interaction, button: ui.Button):
+        container = docker_client.containers.get(self.container_name)
+        container.start()
+        await interaction.response.send_message(f"✅ VPS `{self.container_name}` started!", ephemeral=True)
+
+    @ui.button(label="Stop", style=discord.ButtonStyle.danger)
+    async def stop_vps(self, interaction: discord.Interaction, button: ui.Button):
+        container = docker_client.containers.get(self.container_name)
+        container.stop()
+        await interaction.response.send_message(f"🛑 VPS `{self.container_name}` stopped!", ephemeral=True)
+
+    @ui.button(label="Restart", style=discord.ButtonStyle.primary)
+    async def restart_vps(self, interaction: discord.Interaction, button: ui.Button):
+        container = docker_client.containers.get(self.container_name)
+        container.restart()
+        await interaction.response.send_message(f"🔄 VPS `{self.container_name}` restarted!", ephemeral=True)
+
+    @ui.button(label="Regenerate SSH", style=discord.ButtonStyle.secondary)
+    async def regenerate_ssh(self, interaction: discord.Interaction, button: ui.Button):
+        container = docker_client.containers.get(self.container_name)
+        new_pass = "Pass" + str(discord.utils.utcnow().timestamp())[-6:]
+        container.exec_run(f"echo 'root:{new_pass}' | chpasswd")
+        ip = container.attrs['NetworkSettings']['IPAddress']
+        await interaction.user.send(f"🔑 **New SSH:**\n```ssh root@{ip} -p 22\nPassword: {new_pass}```")
+        await interaction.response.send_message("✅ New SSH sent in DM!", ephemeral=True)
+
+    @ui.button(label="Get SSH Info", style=discord.ButtonStyle.blurple)
+    async def ssh_info(self, interaction: discord.Interaction, button: ui.Button):
+        container = docker_client.containers.get(self.container_name)
+        ip = container.attrs['NetworkSettings']['IPAddress']
+        ssh_pass = "StoredOrGeneratedPass"
+        await interaction.response.send_message(
+            f"📡 **SSH Info:**\n```ssh root@{ip} -p 22\nPassword: {ssh_pass}```",
+            ephemeral=True
+        )
+
+    @ui.button(label="Refresh Status", style=discord.ButtonStyle.green)
+    async def refresh_status(self, interaction: discord.Interaction, button: ui.Button):
+        container = docker_client.containers.get(self.container_name)
+        status = "🟢 Online" if container.status == "running" else "🔴 Offline"
+        ram = container.attrs["HostConfig"]["Memory"] // (1024**3)
+        cpu = container.attrs["HostConfig"]["NanoCpus"] / 1e9
+        embed = discord.Embed(
+            title=f"⚙ VPS Manager — {self.container_name}",
+            description=f"**Status:** {status}\n**RAM:** {ram} GB\n**CPU:** {cpu} Cores",
+            color=discord.Color.green() if container.status == "running" else discord.Color.red()
+        )
+        await interaction.response.edit_message(embed=embed, view=self)
+
+@bot.tree.command(name="manage", description="Manage your VPS")
+async def manage(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    user_id = str(interaction.user.id)
+    owned_vps = []
+
+    try:
+        with open("database.txt", "r") as f:
+            for line in f:
+                cname, uid = line.strip().split("|")
+                if uid == user_id:
+                    owned_vps.append(cname)
+    except FileNotFoundError:
+        pass
+
+    if not owned_vps:
+        await interaction.followup.send("❌ You have no VPS linked to your account.", ephemeral=True)
+        return
+
+    cname = owned_vps[0]
+    container = docker_client.containers.get(cname)
+    status = "🟢 Online" if container.status == "running" else "🔴 Offline"
+    ram = container.attrs["HostConfig"]["Memory"] // (1024**3)
+    cpu = container.attrs["HostConfig"]["NanoCpus"] / 1e9
+
+    embed = discord.Embed(
+        title=f"⚙ VPS Manager — {cname}",
+        description=f"**Status:** {status}\n**RAM:** {ram} GB\n**CPU:** {cpu} Cores",
+        color=discord.Color.green() if container.status == "running" else discord.Color.red()
+    )
+    await interaction.followup.send(embed=embed, view=ManageVPSView(cname, interaction.user.id), ephemeral=True)
+
+
+# ================= /status =================
+@bot.tree.command(name="status", description="LD NODE VM status")
+async def status_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    ip = "45.184.85.20"  # Replace with function if dynamic
+    embed = discord.Embed(
+        title="LD NODE VM",
+        description=(
+            f"**Node:** 🟢 Online\n"
+            f"**Up:** 24h\n"
+            f"**VM Total:** 5\n"
+            f"**Running VM:** 4\n"
+            f"**Total RAM:** 32 GB\n"
+            f"**Total CPU:** 8 vCores Ryzen 9\n"
+            f"**Total Disk:** 500 GB\n\n"
+            f"**Shared IPv4 VPS IP Status:** Online\n"
+            f"**Ip = {ip}**"
+        ),
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Made by Gamerzhacker")
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# ================= /suspendvps =================
+@bot.tree.command(name="suspendvps", description="Suspend a VPS (Admin only)")
+@app_commands.describe(container_name="Name of container", usertag="User to notify")
+async def suspendvps(interaction: discord.Interaction, container_name: str, usertag: discord.User):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        return
+    try:
+        container = docker_client.containers.get(container_name)
+        container.stop()
+        await usertag.send(f"✅ Your VPS `{container_name}` has been **Suspended**.")
+        await interaction.response.send_message(f"🛑 VPS `{container_name}` suspended and user notified.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+
+
+# ================= /unsuspendvps =================
+@bot.tree.command(name="unsuspendvps", description="Unsuspend a VPS (Admin only)")
+@app_commands.describe(container_name="Name of container", usertag="User to notify")
+async def unsuspendvps(interaction: discord.Interaction, container_name: str, usertag: discord.User):
+    if not is_admin(interaction.user.id):
+        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        return
+    try:
+        container = docker_client.containers.get(container_name)
+        container.start()
+        await usertag.send(f"✅ Your VPS `{container_name}` has been **Unsuspended**.")
+        await interaction.response.send_message(f"▶ VPS `{container_name}` unsuspended and user notified.", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
 bot.run(TOKEN)
