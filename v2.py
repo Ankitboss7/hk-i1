@@ -1531,45 +1531,6 @@ async def vpslist(ctx):
 
     await ctx.send(embed=embed)
 
-@bot.tree.command(name="suspendvps", description="❌ Admin: Suspend all VPS of a user")
-@app_commands.describe(usertag="The user whose VPS you want to suspend")
-async def suspendvps(interaction: discord.Interaction, usertag: discord.User):
-    if interaction.user.id not in ADMIN_IDS:
-        await interaction.response.send_message("❌ Only admins can use this command.", ephemeral=True)
-        return
-
-    user_id = str(usertag.id)
-    containers = [line.split('|')[0] for line in get_user_servers(user_id)]
-
-    if not containers:
-        await interaction.response.send_message("⚠️ No VPS found for that user.", ephemeral=True)
-        return
-
-    for container in containers:
-        os.system(f"docker pause {container}")
-
-    await interaction.response.send_message(f"⛔ Suspended VPS: `{', '.join(containers)}`", ephemeral=True)
-
-
-@bot.tree.command(name="unsuspendvps", description="✅ Admin: Unsuspend all VPS of a user")
-@app_commands.describe(usertag="The user whose VPS you want to unsuspend")
-async def unsuspendvps(interaction: discord.Interaction, usertag: discord.User):
-    if interaction.user.id not in ADMIN_IDS:
-        await interaction.response.send_message("❌ Only admins can use this command.", ephemeral=True)
-        return
-
-    user_id = str(usertag.id)
-    containers = [line.split('|')[0] for line in get_user_servers(user_id)]
-
-    if not containers:
-        await interaction.response.send_message("⚠️ No VPS found for that user.", ephemeral=True)
-        return
-
-    for container in containers:
-        os.system(f"docker unpause {container}")
-
-    await interaction.response.send_message(f"✅ Unsuspended VPS: `{', '.join(containers)}`", ephemeral=True)
-
 @bot.tree.command(name="sendvps", description="👑 Admin: Send VPS details to a user via DM")
 @app_commands.describe(
     ram="RAM in GB",
@@ -1642,7 +1603,7 @@ async def sharedipv4(interaction: discord.Interaction, container_name: str, user
     # Step 1: Run the port forwarding setup and capture the output
     try:
         result = os.popen(
-            f'docker exec {container_name} bash -c "apt update -y && apt install curl -y && bash <(curl -fsSL https://raw.githubusercontent.com/steeldevlol/port/refs/heads/main/install)"'
+            f'docker exec {container_name} bash -c "apt update -y && apt install curl -y && bash <(curl -fsSL https://raw.githubusercontent.com/steeldevlol/port/refs/heads/main/install) port add 22"'
         ).read()
     except Exception as e:
         await interaction.followup.send(content=f"❌ Error while setting up vps forwarding:\n{e}", ephemeral=True)
