@@ -1935,7 +1935,30 @@ async def newmessage(interaction: discord.Interaction, channelid: str, text: str
     except Exception as e:
         await interaction.response.send_message(f"❌ Failed: {e}", ephemeral=True)
 
-# ================= /manage =================
+# ================= /status =================
+@bot.tree.command(name="status", description="LD NODE VM status")
+async def status_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    ip = "45.184.85.20 & 103.91.67.226"  # Replace with function if dynamic
+    embed = discord.Embed(
+        title="LD NODE VM",
+        description=(
+            f"**Node:** 🟢 Online\n"
+            f"**Up:** 24h\n"
+            f"**VM Total:** 5\n"
+            f"**Running VM:** 4\n"
+            f"**Total RAM:** 32 GB\n"
+            f"**Total CPU:** 8 vCores Ryzen 9\n"
+            f"**Total Disk:** 500 GB\n\n"
+            f"**Shared IPv4 VPS IP Status:** Online\n"
+            f"**Ip = {ip}**"
+        ),
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Made by Gamerzhacker")
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+# ============ MANAGE VIEW ============
 class ManageVPSView(ui.View):
     def __init__(self, container_name: str, owner_id: int):
         super().__init__(timeout=None)
@@ -1998,6 +2021,8 @@ class ManageVPSView(ui.View):
         )
         await interaction.response.edit_message(embed=embed, view=self)
 
+
+# ============ /manage CMD ============
 @bot.tree.command(name="manage", description="Manage your VPS")
 async def manage(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
@@ -2031,31 +2056,7 @@ async def manage(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, view=ManageVPSView(cname, interaction.user.id), ephemeral=True)
 
 
-# ================= /status =================
-@bot.tree.command(name="status", description="LD NODE VM status")
-async def status_cmd(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True)
-    ip = "45.184.85.20"  # Replace with function if dynamic
-    embed = discord.Embed(
-        title="LD NODE VM",
-        description=(
-            f"**Node:** 🟢 Online\n"
-            f"**Up:** 24h\n"
-            f"**VM Total:** 5\n"
-            f"**Running VM:** 4\n"
-            f"**Total RAM:** 32 GB\n"
-            f"**Total CPU:** 8 vCores Ryzen 9\n"
-            f"**Total Disk:** 500 GB\n\n"
-            f"**Shared IPv4 VPS IP Status:** Online\n"
-            f"**Ip = {ip}**"
-        ),
-        color=discord.Color.green()
-    )
-    embed.set_footer(text="Made by Gamerzhacker")
-    await interaction.followup.send(embed=embed, ephemeral=True)
-
-
-# ================= /suspendvps =================
+# ============ /suspendvps ============
 @bot.tree.command(name="suspendvps", description="Suspend a VPS (Admin only)")
 @app_commands.describe(container_name="Name of container", usertag="User to notify")
 async def suspendvps(interaction: discord.Interaction, container_name: str, usertag: discord.User):
@@ -2071,7 +2072,7 @@ async def suspendvps(interaction: discord.Interaction, container_name: str, user
         await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
 
-# ================= /unsuspendvps =================
+# ============ /unsuspendvps ============
 @bot.tree.command(name="unsuspendvps", description="Unsuspend a VPS (Admin only)")
 @app_commands.describe(container_name="Name of container", usertag="User to notify")
 async def unsuspendvps(interaction: discord.Interaction, container_name: str, usertag: discord.User):
